@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Kiosk TV Dashboard</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      color: #fff;
+      font-family: "Segoe UI", Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Layout */
+    #news {
+      flex: 3;
+      position: relative;
+    }
+
+    #sidebar {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      align-items: center;
+      padding: 30px 20px;
+      background: linear-gradient(-45deg, #1a2a6c, #1e3c72, #2a5298, #3a6ebf);
+      background-size: 400% 400%;
+      animation: gradientShift 30s ease infinite;
+      box-shadow: -6px 0 20px rgba(0,0,0,0.6);
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* Video */
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Clock */
+    #clock {
+      font-size: 3.2em;
+      font-weight: bold;
+      text-align: center;
+      margin: 0;
+    }
+    #date {
+      font-size: 1.1em;
+      margin-bottom: 20px;
+      text-align: center;
+      opacity: 0.9;
+    }
+
+    /* Weather */
+    #weather {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: 100%;
+      flex-shrink: 0;
+    }
+
+    .weather-block {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 15px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+      transition: transform 0.3s, opacity 1s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.95;
+    }
+
+    .weather-block:hover {
+      transform: scale(1.02);
+    }
+
+    .weather-title {
+      font-size: 1.1em;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #f0f0f0;
+      opacity: 0.95;
+    }
+
+    .temp {
+      font-size: 1.8em;
+      font-weight: bold;
+      margin-top: 5px;
+    }
+
+    .condition {
+      font-size: 1em;
+      margin-top: 5px;
+      opacity: 0.85;
+    }
+
+    .weather-block img {
+      width: 60px;
+      height: 60px;
+      margin: 10px 0;
+      animation: float 4s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-5px); }
+      100% { transform: translateY(0px); }
+    }
+
+    /* Make sidebar content shrink slightly if needed */
+    @media (max-height: 800px) {
+      #clock { font-size: 2.6em; }
+      #date { font-size: 1em; }
+      .weather-block { padding: 15px; }
+      .weather-block img { width: 50px; height: 50px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Left: News -->
+  <div id="news">
+    <iframe
+      src="https://www.youtube.com/embed/YDvsBbKfLPA?autoplay=1&mute=1"
+      allow="autoplay; encrypted-media"
+      allowfullscreen>
+    </iframe>
+  </div>
+
+  <!-- Right: Sidebar -->
+  <div id="sidebar">
+    <div id="clock">--:--:--</div>
+    <div id="date">Loading date...</div>
+
+    <div id="weather">
+      <div class="weather-block" id="current-weather">Loading...</div>
+      <div class="weather-block" id="next-hour-weather">Loading...</div>
+    </div>
+  </div>
+
+  <script>
+    // CLOCK & DATE (24-hour UK format, manual for TV compatibility)
+    function updateTime() {
+      const now = new Date();
+
+      // 24-hour format
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      const time = `${hours}:${minutes}:${seconds}`;
+
+      // Manual UK date with weekday
+      const weekdays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      const dayName = weekdays[now.getDay()];
+      const dayNum = now.getDate();
+      const monthName = months[now.getMonth()];
+      const year = now.getFullYear();
+      const date = `${dayName}, ${dayNum} ${monthName} ${year}`;
+
+      document.getElementById('clock').innerText = time;
+      document.getElementById('date').innerText = date;
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+
+    // WEATHER (WeatherAPI)
+    async function fetchWeather() {
+      try {
+        const apiKey = "ff969ee887c546548c1120810252808"; // your API key
+        const location = "Leeds";
+        const url = `https://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${location}&hours=2`;
+
+        const resp = await fetch(url);
+        const data = await resp.json();
+
+        if (!data || !data.current || !data.forecast) {
+          document.getElementById('current-weather').innerText = "Weather unavailable";
+          document.getElementById('next-hour-weather').innerText = "Forecast unavailable";
+          return;
+        }
+
+        // Current weather
+        const current = data.current;
+        const currentBlock = document.getElementById("current-weather");
+        currentBlock.style.opacity = 0;
+        currentBlock.innerHTML = `
+          <div class="weather-title">Now</div>
+          <img src="https:${current.condition.icon}" alt="${current.condition.text}">
+          <div class="temp">${current.temp_c.toFixed(1)}°C</div>
+          <div class="condition">${current.condition.text}</div>
+        `;
+        setTimeout(() => { currentBlock.style.opacity = 0.95; }, 50);
+
+        // Next hour forecast
+        const nowHour = new Date().getHours();
+        const nextHour = data.forecast.forecastday[0].hour.find(h => {
+          const forecastTime = new Date(h.time).getHours();
+          return forecastTime === (nowHour + 1) % 24;
+        });
+
+        const nextBlock = document.getElementById("next-hour-weather");
+        nextBlock.style.opacity = 0;
+        if (nextHour) {
+          nextBlock.innerHTML = `
+            <div class="weather-title">Next Hour</div>
+            <img src="https:${nextHour.condition.icon}" alt="${nextHour.condition.text}">
+            <div class="temp">${nextHour.temp_c.toFixed(1)}°C</div>
+            <div class="condition">${nextHour.condition.text}</div>
+          `;
+        } else {
+          nextBlock.innerText = "Forecast unavailable";
+        }
+        setTimeout(() => { nextBlock.style.opacity = 0.95; }, 50);
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById("current-weather").innerText = "Weather error";
+        document.getElementById("next-hour-weather").innerText = "Weather error";
+      }
+    }
+
+    fetchWeather();
+    setInterval(fetchWeather, 10 * 60 * 1000); // every 10 mins
+  </script>
+</body>
+</html>
